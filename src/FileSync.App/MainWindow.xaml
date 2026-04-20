@@ -16,7 +16,10 @@
             <TextBlock Text="Sync Root:" VerticalAlignment="Center" Margin="0,0,8,0"/>
             <TextBox Width="500" Text="{Binding SyncRootPath, UpdateSourceTrigger=PropertyChanged}" />
             <Button Margin="8,0,0,0" Padding="12,6" Content="Initialize Sync Root" Click="InitializeSyncRoot_Click" />
+            <Button Margin="8,0,0,0" Padding="12,6" Content="Unregister Sync Root" Click="UnregisterSyncRoot_Click" />
             <Button Margin="8,0,0,0" Padding="12,6" Content="Hydrate Selected" Click="HydrateSelected_Click" />
+            <Button Margin="8,0,0,0" Padding="12,6" Content="Delete Selected Entry" Click="DeleteSelectedEntry_Click" />
+            <Button Margin="8,0,0,0" Padding="12,6" Content="Clear Failed Entries" Click="ClearFailedEntries_Click" />
         </StackPanel>
 
         <Border Grid.Row="1"

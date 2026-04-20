@@ -37,4 +37,22 @@ public sealed class S3SyncService
             FilePath = filePath
         }, cancellationToken);
     }
+
+    public async Task DownloadAsync(string key, string destinationPath, CancellationToken cancellationToken = default)
+    {
+        _logger.Info($"Downloading from S3: {key}");
+        var directory = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        using var response = await _client.GetObjectAsync(new GetObjectRequest
+        {
+            BucketName = _settings.BucketName,
+            Key = key
+        }, cancellationToken);
+
+        await response.WriteResponseStreamToFileAsync(destinationPath, false, cancellationToken);
+    }
 }

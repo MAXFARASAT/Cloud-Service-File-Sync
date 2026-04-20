@@ -18,6 +18,15 @@ public static class NativeSyncInterop
     private static extern int RegisterSyncRoot(string syncRootPath);
 
     [DllImport(DllName, CharSet = CharSet.Unicode)]
+    private static extern int ConnectSyncRoot(string syncRootPath);
+
+    [DllImport(DllName, CharSet = CharSet.Unicode)]
+    private static extern int DisconnectSyncRoot();
+
+    [DllImport(DllName, CharSet = CharSet.Unicode)]
+    private static extern int UnregisterSyncRoot(string syncRootPath);
+
+    [DllImport(DllName, CharSet = CharSet.Unicode)]
     private static extern int CreatePlaceholderFile(string path, long fileSize, int status);
 
     [DllImport(DllName, CharSet = CharSet.Unicode)]
@@ -28,6 +37,15 @@ public static class NativeSyncInterop
 
     public static void RegisterRootOrThrow(string syncRootPath) =>
         ThrowOnError(RegisterSyncRoot(syncRootPath), "CFAPI sync root registration failed");
+
+    public static void ConnectRootOrThrow(string syncRootPath) =>
+        ThrowOnError(ConnectSyncRoot(syncRootPath), "CFAPI sync root connect failed");
+
+    public static void DisconnectRootOrThrow() =>
+        ThrowOnError(DisconnectSyncRoot(), "CFAPI sync root disconnect failed");
+
+    public static void UnregisterRootOrThrow(string syncRootPath) =>
+        ThrowOnError(UnregisterSyncRoot(syncRootPath), "CFAPI sync root unregistration failed");
 
     public static void CreatePlaceholderOrThrow(string filePath, long size, SyncStatus status) =>
         ThrowOnError(CreatePlaceholderFile(filePath, size, (int)status), "CFAPI placeholder creation failed");

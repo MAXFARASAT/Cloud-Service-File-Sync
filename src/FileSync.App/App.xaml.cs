@@ -1,13 +1,14 @@
 using System.Text.Json;
-using System.Windows;
 using System.IO;
 using FileSync.Core;
 
 namespace FileSync.App;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
-    protected override void OnStartup(StartupEventArgs e)
+    private SyncCoordinator? _coordinator;
+
+    protected override void OnStartup(System.Windows.StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -21,10 +22,25 @@ public partial class App : Application
         var store = new MetadataStore(dataPath, logger);
         var s3 = new S3SyncService(settings, logger);
         var coordinator = new SyncCoordinator(settings, s3, store, logger);
+        _coordinator = coordinator;
 
         var vm = new MainViewModel(coordinator, logger, settings);
         var window = new MainWindow { DataContext = vm };
         window.Show();
+    }
+
+    protected override void OnExit(System.Windows.ExitEventArgs e)
+    {
+        try
+        {
+            _coordinator?.DisconnectProvider();
+        }
+        catch
+        {
+            // Best effort shutdown cleanup.
+        }
+
+        base.OnExit(e);
     }
 
     private static AppSettings LoadSettings(string path)

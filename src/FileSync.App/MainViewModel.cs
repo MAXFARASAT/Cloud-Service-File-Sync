@@ -8,11 +8,13 @@ namespace FileSync.App;
 
 public sealed class MainViewModel : INotifyPropertyChanged
 {
+    private static readonly TimeSpan HydrationTimeout = TimeSpan.FromSeconds(45);
     private readonly SyncCoordinator _coordinator;
     private readonly IAppLogger _logger;
     private readonly AppSettings _settings;
     private string _syncRootPath;
     private string _lastMessage = "Ready.";
+    private bool _isHydrating;
 
     public MainViewModel(SyncCoordinator coordinator, IAppLogger logger, AppSettings settings)
     {
@@ -67,6 +69,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public void UnregisterSyncRoot()
+    {
+        try
+        {
+            _settings.SyncRootPath = SyncRootPath;
+            _coordinator.UnregisterSyncRoot();
+            LastMessage = $"Sync root unregistered: {SyncRootPath}";
+        }
+        catch (Exception ex)
+        {
+            _logger.Error("Sync root unregistration failed", ex);
+            LastMessage = $"Failed to unregister sync root: {ex.Message}";
+        }
+    }
+
     public async Task HandleDropAsync(IEnumerable<string> paths)
     {
         foreach (var path in paths)
@@ -99,20 +116,94 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public void HydrateSelected()
+    public async Task HydrateSelectedAsync()
     {
+        if (_isHydrating)
+        {
+            LastMessage = "Hydration is already in progress. Please wait.";
+            return;
+        }
+
         if (SelectedFile is null)
         {
             LastMessage = "Select a file first to hydrate.";
             return;
         }
 
-        var result = _coordinator.Hydrate(SelectedFile);
+        _isHydrating = true;
+        try
+        {
+            var selected = SelectedFile;
+            LastMessage = $"Hydrating {selected.FileName}...";
+
+            var hydrateTask = Task.Run(() => _coordinator.Hydrate(selected));
+            var completedTask = await Task.WhenAny(hydrateTask, Task.Delay(HydrationTimeout));
+            if (completedTask != hydrateTask)
+            {
+                LastMessage = $"Hydration timed out after {HydrationTimeout.TotalSeconds:0} seconds. Falling back to direct S3 download...";
+                var fallbackResult = await _coordinator.DownloadWithoutCfapiAsync(selected);
+                _coordinator.SaveItems(Files);
+                LastMessage = fallbackResult.Status == SyncStatus.Failed && !string.IsNullOrWhiteSpace(fallbackResult.ErrorMessage)
+                    ? $"{fallbackResult.FileName}: {fallbackResult.ErrorMessage}"
+                    : $"{fallbackResult.FileName}: Downloaded via direct S3 fallback";
+                OnPropertyChanged(nameof(SelectedFile));
+                OnPropertyChanged(nameof(Files));
+                return;
+            }
+
+            var result = await hydrateTask;
+            _coordinator.SaveItems(Files);
+            LastMessage = result.Status == SyncStatus.Failed && !string.IsNullOrWhiteSpace(result.ErrorMessage)
+                ? $"{result.FileName}: {result.ErrorMessage}"
+                : $"{result.FileName}: {result.Status}";
+            OnPropertyChanged(nameof(SelectedFile));
+            OnPropertyChanged(nameof(Files));
+        }
+        finally
+        {
+            _isHydrating = false;
+        }
+    }
+
+    public void DeleteSelectedEntry()
+    {
+        if (SelectedFile is null)
+        {
+            LastMessage = "Select a metadata entry first to delete.";
+            return;
+        }
+
+        var removedName = SelectedFile.FileName;
+        Files.Remove(SelectedFile);
+        SelectedFile = null;
         _coordinator.SaveItems(Files);
-        LastMessage = result.Status == SyncStatus.Failed && !string.IsNullOrWhiteSpace(result.ErrorMessage)
-            ? $"{result.FileName}: {result.ErrorMessage}"
-            : $"{result.FileName}: {result.Status}";
+        LastMessage = $"Deleted metadata entry: {removedName}";
         OnPropertyChanged(nameof(SelectedFile));
+        OnPropertyChanged(nameof(Files));
+    }
+
+    public void ClearFailedEntries()
+    {
+        var failedItems = Files.Where(x => x.Status == SyncStatus.Failed).ToList();
+        if (failedItems.Count == 0)
+        {
+            LastMessage = "No failed metadata entries found.";
+            return;
+        }
+
+        foreach (var item in failedItems)
+        {
+            Files.Remove(item);
+        }
+
+        if (SelectedFile is not null && SelectedFile.Status == SyncStatus.Failed)
+        {
+            SelectedFile = null;
+            OnPropertyChanged(nameof(SelectedFile));
+        }
+
+        _coordinator.SaveItems(Files);
+        LastMessage = $"Deleted {failedItems.Count} failed metadata entr{(failedItems.Count == 1 ? "y" : "ies")}.";
         OnPropertyChanged(nameof(Files));
     }
 
