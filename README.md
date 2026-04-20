@@ -81,8 +81,6 @@ Install these prerequisites to build and run the WPF app + native CFAPI interop 
    - Or manually:
      - Start LocalStack: `docker run -d --name localstack -p 4566:4566 localstack/localstack`
      - Create bucket: `aws --endpoint-url=http://localhost:4566 s3 mb s3://cfapi-files`
-    - If container already created
-      - docker run -d --name localstack -p 4566:4566 localstack/localstack
 2. Open `FileSyncPrototype.sln` in Visual Studio.
 3. Build `FileSyncInteropNative` (x64), then set `FileSync.App` as startup project.
 4. Build and run `FileSync.App`.
