@@ -71,6 +71,13 @@ Install these prerequisites to build and run the WPF app + native CFAPI interop 
 1. Start LocalStack (and create bucket):
    - Using the helper script (PowerShell, from repo root):
      - `powershell -ExecutionPolicy Bypass -File scripts/setup-localstack.ps1 -Bucket cfapi-files`
+   - Set AWS CLI test credentials for LocalStack (PowerShell):
+     - `$env:AWS_ACCESS_KEY_ID="test"`
+     - `$env:AWS_SECRET_ACCESS_KEY="test"`
+     - `$env:AWS_DEFAULT_REGION="us-east-1"`
+   - Create and verify bucket (PowerShell):
+     - `aws --endpoint-url=http://localhost:4566 s3 mb s3://cfapi-files`
+     - `aws --endpoint-url=http://localhost:4566 s3 ls`
    - Or manually:
      - Start LocalStack: `docker run -d --name localstack -p 4566:4566 localstack/localstack`
      - Create bucket: `aws --endpoint-url=http://localhost:4566 s3 mb s3://cfapi-files`
