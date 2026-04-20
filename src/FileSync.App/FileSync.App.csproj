@@ -10,11 +10,19 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FileSync.Core\FileSync.Core.csproj" />
+    <ProjectReference Include="..\FileSync.Interop.Native\FileSyncInteropNative.vcxproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\bin\$(Configuration)\FileSyncInteropNative.dll">
+      <Link>FileSyncInteropNative.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
     </None>
   </ItemGroup>
 </Project>

@@ -56,11 +56,19 @@ extern "C"
         std::wstring p(path);
         std::wstring directory = p.substr(0, p.find_last_of(L"\\/"));
         std::wstring fileName = p.substr(p.find_last_of(L"\\/") + 1);
+        FILETIME now = {};
+        GetSystemTimeAsFileTime(&now);
 
         CF_PLACEHOLDER_CREATE_INFO info = {};
         info.RelativeFileName = fileName.c_str();
-        info.FsMetadata.BasicInfo.FileAttributes = FILE_ATTRIBUTE_ARCHIVE;
+        info.FsMetadata.BasicInfo.FileAttributes = FILE_ATTRIBUTE_NORMAL;
+        info.FsMetadata.BasicInfo.CreationTime = now;
+        info.FsMetadata.BasicInfo.LastWriteTime = now;
+        info.FsMetadata.BasicInfo.LastAccessTime = now;
+        info.FsMetadata.BasicInfo.ChangeTime = now;
         info.FsMetadata.FileSize.QuadPart = fileSize;
+        info.FileIdentity = fileName.c_str();
+        info.FileIdentityLength = static_cast<DWORD>((fileName.size() + 1) * sizeof(wchar_t));
         info.Flags = CF_PLACEHOLDER_CREATE_FLAG_MARK_IN_SYNC;
         info.Result = S_OK;
 

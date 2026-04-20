@@ -2,6 +2,7 @@ namespace FileSync.Core;
 
 public sealed class SyncCoordinator
 {
+    private const int ErrorCloudOperationNotUnderSyncRoot = unchecked((int)0x80070186);
     private readonly AppSettings _settings;
     private readonly S3SyncService _s3;
     private readonly MetadataStore _store;
@@ -37,8 +38,7 @@ public sealed class SyncCoordinator
         try
         {
             await _s3.UploadAsync(sourcePath, ct);
-            NativeSyncInterop.CreatePlaceholderOrThrow(item.LocalPath, item.SizeBytes, SyncStatus.Synced);
-            NativeSyncInterop.NotifyStateOrThrow(item.LocalPath, SyncStatus.Synced);
+            TryCreatePlaceholderWithSyncRootRecovery(item);
 
             item.Status = SyncStatus.Synced;
             item.ErrorMessage = null;
@@ -89,9 +89,31 @@ public sealed class SyncCoordinator
 
         if (ex is NativeSyncException)
         {
+            if (ex.HResult == ErrorCloudOperationNotUnderSyncRoot)
+            {
+                return "Placeholder creation is only supported under a registered sync root. Re-initialize the sync root and retry.";
+            }
+
             return ex.Message;
         }
 
         return ex.Message;
+    }
+
+    private void TryCreatePlaceholderWithSyncRootRecovery(FileItem item)
+    {
+        try
+        {
+            NativeSyncInterop.CreatePlaceholderOrThrow(item.LocalPath, item.SizeBytes, SyncStatus.Synced);
+            NativeSyncInterop.NotifyStateOrThrow(item.LocalPath, SyncStatus.Synced);
+        }
+        catch (NativeSyncException ex) when (ex.HResult == ErrorCloudOperationNotUnderSyncRoot)
+        {
+            _logger.Info("Sync root appears stale/unregistered. Re-registering sync root and retrying placeholder creation once.");
+            Directory.CreateDirectory(_settings.SyncRootPath);
+            NativeSyncInterop.RegisterRootOrThrow(_settings.SyncRootPath);
+            NativeSyncInterop.CreatePlaceholderOrThrow(item.LocalPath, item.SizeBytes, SyncStatus.Synced);
+            NativeSyncInterop.NotifyStateOrThrow(item.LocalPath, SyncStatus.Synced);
+        }
     }
 }
