@@ -152,6 +152,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
 
             var result = await hydrateTask;
+            if (result.Status == SyncStatus.Failed)
+            {
+                LastMessage = $"{result.FileName}: CFAPI hydrate failed. Falling back to direct S3 download...";
+                var fallbackResult = await _coordinator.DownloadWithoutCfapiAsync(selected);
+                _coordinator.SaveItems(Files);
+                LastMessage = fallbackResult.Status == SyncStatus.Failed && !string.IsNullOrWhiteSpace(fallbackResult.ErrorMessage)
+                    ? $"{fallbackResult.FileName}: {fallbackResult.ErrorMessage}"
+                    : $"{fallbackResult.FileName}: Downloaded via direct S3 fallback";
+                OnPropertyChanged(nameof(SelectedFile));
+                OnPropertyChanged(nameof(Files));
+                return;
+            }
+
             _coordinator.SaveItems(Files);
             LastMessage = result.Status == SyncStatus.Failed && !string.IsNullOrWhiteSpace(result.ErrorMessage)
                 ? $"{result.FileName}: {result.ErrorMessage}"
